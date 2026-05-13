@@ -1,1 +1,10 @@
 /.metadata/
+
+# IDE / OS noise
+.idea/
+*.iml
+.DS_Store
+
+# Simulation output (regenerable, large, machine-specific timestamps)
+sim_res/
+

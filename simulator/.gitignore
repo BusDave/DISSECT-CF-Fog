@@ -394,10 +394,29 @@ poetry.toml
 
 # End of https://www.toptal.com/developers/gitignore/api/python,java,maven,eclipse,intellij
 
-# Additional 
+# Additional
 .checkstyle
 *sim_res*
 *AGENT_examples*
 *out.xml
 /target/
 .idea
+
+# Generated workflow XMLs (kept out of git — too many, large, and regenerable
+# via random_workflow_generator.py / generate_workflows.py). The original
+# CyberShake_100.xml, IoT_CyberShake_100.xml and IoT_workflow.xml stay tracked.
+src/main/resources/demo/WORKFLOW_examples/blast_*_workflow_converted.xml
+src/main/resources/demo/WORKFLOW_examples/cycles_*_workflow_converted.xml
+src/main/resources/demo/WORKFLOW_examples/genome_*_workflow_converted.xml
+src/main/resources/demo/WORKFLOW_examples/montage_*_workflow_converted.xml
+src/main/resources/demo/WORKFLOW_examples/seismology_*_workflow_converted.xml
+src/main/resources/demo/WORKFLOW_examples/chaotic_n*_c*.xml
+src/main/resources/demo/WORKFLOW_examples/random-wf-n*.xml
+src/main/resources/demo/WORKFLOW_examples/big.xml
+src/main/resources/demo/WORKFLOW_examples/wf.xml
+
+# WfCommons intermediate JSON outputs (regenerable from recipes)
+src/main/resources/demo/WfCommons_JSON/
+
+# Python type checker config (IDE-specific, not needed for execution)
+src/main/resources/script/pyrightconfig.json
