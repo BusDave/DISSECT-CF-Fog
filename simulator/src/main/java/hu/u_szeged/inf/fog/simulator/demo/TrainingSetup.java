@@ -9,10 +9,10 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * Shared 20-node cluster setup for the training-data demos. Pulled out so
- * {@link HeftLoggingDemo} and {@link HeftDsLoggingDemo} share the same
- * environment (otherwise each scheduler would learn from a slightly
- * different state distribution).
+ * Shared 20-node cluster setup for the training-data and benchmark runs.
+ * Pulled out so {@link BatchTrainingRunner} and {@link SchedulerBenchmarkRunner}
+ * (and the GNN scalability test) all share the same environment — otherwise
+ * each scheduler would learn from a slightly different state distribution.
  *
  * <p>Composition: 4 cloud (ELKH 52-core) + 12 fog (LPDS 16-core) + 4 small
  * (4-core inline). Matches the production setup of {@link WorkflowSimulation}.
@@ -71,6 +71,46 @@ public final class TrainingSetup {
         nodes.add(node8);  nodes.add(node9);  nodes.add(node10); nodes.add(node11);
         nodes.add(node12); nodes.add(node13); nodes.add(node14); nodes.add(node15);
         nodes.add(node16); nodes.add(node17); nodes.add(node18); nodes.add(node19);
+        return nodes;
+    }
+
+    /**
+     * 25-node variant: the standard 20-node cluster plus 5 extra nodes at new
+     * geo-locations. Used to test scheduler cluster-size scalability — a
+     * scheduler that was only trained on 20 nodes must still be able to make
+     * sane decisions on this enlarged topology.
+     *
+     * <p>The 5 extras: 2 clouds (Lisbon, Warsaw), 2 fogs (Oslo, Prague),
+     * 1 edge (Bucharest). New geo-coordinates so the haversine-distance
+     * matrix differs from anything seen during training.
+     */
+    public static ArrayList<WorkflowComputingAppliance> buildNodes25() throws Exception {
+        ArrayList<WorkflowComputingAppliance> nodes = buildNodes();
+
+        String cloudfile = ScenarioBase.resourcePath + "ELKH_original.xml";
+        String fogfile   = ScenarioBase.resourcePath + "XML_examples/LPDS_16.xml";
+
+        WorkflowComputingAppliance node20 = new WorkflowComputingAppliance(cloudfile, "node20",
+                new GeoLocation(38.7223, -9.1393),  0);   // Lisbon — extra cloud
+        WorkflowComputingAppliance node21 = new WorkflowComputingAppliance(cloudfile, "node21",
+                new GeoLocation(52.2297, 21.0122),  0);   // Warsaw — extra cloud
+        WorkflowComputingAppliance node22 = new WorkflowComputingAppliance(fogfile,   "node22",
+                new GeoLocation(59.9139, 10.7522),  0);   // Oslo — extra fog
+        WorkflowComputingAppliance node23 = new WorkflowComputingAppliance(fogfile,   "node23",
+                new GeoLocation(50.0755, 14.4378),  0);   // Prague — extra fog
+        WorkflowComputingAppliance node24 = new WorkflowComputingAppliance(
+                AgentTestUNC.createNode("node24", 4, 0.001, 4L * 1_073_741_824L, 32L * 1_073_741_824L,
+                        1, 3.5, 7.5, 62_500, 15, new HashMap<>()),
+                new GeoLocation(44.4268, 26.1025));        // Bucharest — extra edge
+
+        // Re-attach distance-based latencies for the enlarged set.
+        WorkflowComputingAppliance.setDistanceBasedLatency();
+
+        nodes.add(node20);
+        nodes.add(node21);
+        nodes.add(node22);
+        nodes.add(node23);
+        nodes.add(node24);
         return nodes;
     }
 

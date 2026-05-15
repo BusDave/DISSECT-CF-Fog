@@ -31,8 +31,16 @@ public class AdaptiveHeftSchedulerWithLogging extends AdaptiveHeftScheduler {
                                             Instance instance,
                                             ArrayList<Actuator> actuatorArchitecture,
                                             Pair<String, ArrayList<WorkflowJob>> jobs) {
+        this(computeArchitecture, instance, actuatorArchitecture, jobs, null);
+    }
+
+    public AdaptiveHeftSchedulerWithLogging(ArrayList<WorkflowComputingAppliance> computeArchitecture,
+                                            Instance instance,
+                                            ArrayList<Actuator> actuatorArchitecture,
+                                            Pair<String, ArrayList<WorkflowJob>> jobs,
+                                            String workflowXmlPath) {
         super(computeArchitecture, instance, actuatorArchitecture, jobs);
-        this.logger = new TrainingLogger(jobs.getLeft(), "adaptive");
+        this.logger = new TrainingLogger(jobs.getLeft(), "adaptive", workflowXmlPath);
     }
 
     @Override

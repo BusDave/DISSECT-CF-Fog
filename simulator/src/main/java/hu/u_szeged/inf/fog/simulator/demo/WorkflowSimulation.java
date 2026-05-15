@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import hu.u_szeged.inf.fog.simulator.workflow.scheduler.AdaptiveHeftScheduler;
+import hu.u_szeged.inf.fog.simulator.workflow.scheduler.*;
 import org.apache.commons.lang3.tuple.Pair;
 import hu.mta.sztaki.lpds.cloud.simulator.Timed;
 import hu.mta.sztaki.lpds.cloud.simulator.iaas.constraints.AlterableResourceConstraints;
@@ -22,10 +22,6 @@ import hu.u_szeged.inf.fog.simulator.util.xml.WorkflowJobModel;
 import hu.u_szeged.inf.fog.simulator.workflow.WorkflowExecutor;
 import hu.u_szeged.inf.fog.simulator.workflow.WorkflowJob;
 import hu.u_szeged.inf.fog.simulator.workflow.aco.CentralisedAntOptimiser;
-import hu.u_szeged.inf.fog.simulator.workflow.scheduler.MaxMinScheduler;
-import hu.u_szeged.inf.fog.simulator.workflow.scheduler.HeftScheduler;
-import hu.u_szeged.inf.fog.simulator.workflow.scheduler.HeftDsScheduler;
-import hu.u_szeged.inf.fog.simulator.workflow.scheduler.NeuralScheduler;
 
 public class WorkflowSimulation {
 
@@ -52,8 +48,8 @@ public class WorkflowSimulation {
         WorkflowComputingAppliance node14 = new WorkflowComputingAppliance(fogfile, "node14", new GeoLocation(39.9334, 32.8597), 0);   
         WorkflowComputingAppliance node16 = new WorkflowComputingAppliance(fogfile, "node16", new GeoLocation(37.9838, 23.7275), 0);  
         WorkflowComputingAppliance node17 = new WorkflowComputingAppliance(fogfile, "node17", new GeoLocation(52.3702, 4.8952), 0);  
-        WorkflowComputingAppliance node19 = new WorkflowComputingAppliance(cloudfile, "node19", new GeoLocation(51.1657, 10.4515), 0); 
-   
+        WorkflowComputingAppliance node19 = new WorkflowComputingAppliance(cloudfile, "node19", new GeoLocation(51.1657, 10.4515), 0);
+
         WorkflowComputingAppliance node18 = new WorkflowComputingAppliance(
                 AgentTestUNC.createNode("node18", 4, 0.001, 4 * 1_073_741_824L, 32 * 1_073_741_824L, 
                 		1, 3.5, 7.5, 62_500, 15, new HashMap<>()),
@@ -91,7 +87,6 @@ public class WorkflowSimulation {
 
         clusterAssignments.put(node1, nodes);
 
-
         /** --- Centralised Clustering Approach --- */
         ArrayList<WorkflowComputingAppliance> nodesToBeClustered = new ArrayList<>();
         
@@ -115,7 +110,7 @@ public class WorkflowSimulation {
         nodesToBeClustered.add(node17);
         nodesToBeClustered.add(node18);
         nodesToBeClustered.add(node19);
-        
+
         clusterAssignments = CentralisedAntOptimiser.runOptimiser(1, nodesToBeClustered, 50, 200, 0.5, 0.2, 0.15, 0.3);
         //clusterAssignments = Medoids.runOptimiser(new ArrayList<>(List.of(4, 18, 15, 13)), nodesToBeClustered);
         //System.exit(0);;
@@ -148,7 +143,7 @@ public class WorkflowSimulation {
         new EnergyDataCollector("node-17", node17.iaas, true);
         new EnergyDataCollector("node-18", node18.iaas, true);
         new EnergyDataCollector("node-19", node19.iaas, true);
-        
+
         // The result of the clustering
         CentralisedAntOptimiser.printClusterAssignments(clusterAssignments);
         
@@ -158,48 +153,20 @@ public class WorkflowSimulation {
         WorkflowExecutor executor = WorkflowExecutor.getIstance();
         
         // Importing and submitting the workflow jobs to each cluster
-        String workflowFile = ScenarioBase.resourcePath + "WORKFLOW_examples/chaotic_n100_c30.xml";
+        String workflowFile = ScenarioBase.resourcePath + "WORKFLOW_examples/epigenomics_50tasks_workflow_converted.xml";
 
 
         VirtualAppliance va = new VirtualAppliance("va", 100, 0, false, 1_073_741_824L);
         AlterableResourceConstraints arc = new AlterableResourceConstraints(1, 0.001, 1_073_741_824L);
         Instance instance = new Instance("instance", va, arc, 0.102 / 60 / 60 / 1000, 1);
         
-        // Swap the scheduler class here to try different policies.
-        // Choices: HeftScheduler, HeftDsScheduler, MaxMinScheduler,
-        //          AdaptiveHeftScheduler, NeuralScheduler.
-        // NeuralScheduler loads simulator/src/main/resources/models/heft_imitation.onnx
-        // and falls back to Adaptive HEFT below confidence 0.5.
-        ArrayList<NeuralScheduler> neuralSchedulers = new ArrayList<>();
         for (int i = 0; i < clusterList.size(); i++) {
             Pair<String, ArrayList<WorkflowJob>> jobs = WorkflowJobModel.loadWorkflowXml(workflowFile, Integer.toString(i));
-            NeuralScheduler sch = new NeuralScheduler(clusterList.get(i), instance, null, jobs);
-            executor.submitJobs(sch);
-            neuralSchedulers.add(sch);
+            executor.submitJobs(new GnnScheduler(clusterList.get(i), instance, null, jobs));
         }
 
         // Logging
         Timed.simulateUntilLastEvent();
-
-        // NeuralScheduler diagnostics + ONNX session cleanup
-        int totalNeural = 0;
-        int totalFallback = 0;
-        long totalInfNs = 0;
-        for (NeuralScheduler sch : neuralSchedulers) {
-            totalNeural   += sch.neuralDecisions;
-            totalFallback += sch.fallbackDecisions;
-            totalInfNs    += sch.inferenceTimeNs;
-            sch.close();
-        }
-        int totalDec = totalNeural + totalFallback;
-        if (totalDec > 0) {
-            System.out.printf("%n=== NeuralScheduler stats ===%n");
-            System.out.printf("  neural / fallback : %d / %d  (%.1f%% neural)%n",
-                    totalNeural, totalFallback, 100.0 * totalNeural / totalDec);
-            System.out.printf("  inference time    : %.2f ms total, %.3f ms / decision%n",
-                    totalInfNs / 1_000_000.0, (totalInfNs / 1_000_000.0) / totalDec);
-        }
-
         ScenarioBase.logStreamProcessing();
         WorkflowGraphVisualiser.generateDag(ScenarioBase.scriptPath, ScenarioBase.resultDirectory, workflowFile);
         TimelineVisualiser.generateTimeline(ScenarioBase.resultDirectory);

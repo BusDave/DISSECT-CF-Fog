@@ -39,8 +39,16 @@ public class HeftSchedulerWithLogging extends HeftScheduler {
                                     Instance instance,
                                     ArrayList<Actuator> actuatorArchitecture,
                                     Pair<String, ArrayList<WorkflowJob>> jobs) {
+        this(computeArchitecture, instance, actuatorArchitecture, jobs, null);
+    }
+
+    public HeftSchedulerWithLogging(ArrayList<WorkflowComputingAppliance> computeArchitecture,
+                                    Instance instance,
+                                    ArrayList<Actuator> actuatorArchitecture,
+                                    Pair<String, ArrayList<WorkflowJob>> jobs,
+                                    String workflowXmlPath) {
         super(computeArchitecture, instance, actuatorArchitecture, jobs);
-        this.logger = new TrainingLogger(jobs.getLeft(), "heft");
+        this.logger = new TrainingLogger(jobs.getLeft(), "heft", workflowXmlPath);
     }
 
     @Override

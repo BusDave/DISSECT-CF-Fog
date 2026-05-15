@@ -41,8 +41,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * </ul>
  *
  * <p>If state leakage manifests (sims hang, memory bloats, makespans drift),
- * fall back to running each workflow in its own JVM via the
- * {@link HeftLoggingDemo}/{@link HeftDsLoggingDemo} configs.
+ * fall back to running each workflow in its own JVM.
  */
 public class BatchTrainingRunner {
 
@@ -139,16 +138,16 @@ public class BatchTrainingRunner {
             Object sch;
             switch (kind) {
                 case HEFT:
-                    sch = new HeftSchedulerWithLogging(clusters.get(i), instance, null, jobs);
+                    sch = new HeftSchedulerWithLogging(clusters.get(i), instance, null, jobs, workflowFile);
                     break;
                 case HEFTDS:
-                    sch = new HeftDsSchedulerWithLogging(clusters.get(i), instance, null, jobs);
+                    sch = new HeftDsSchedulerWithLogging(clusters.get(i), instance, null, jobs, workflowFile);
                     break;
                 case MAXMIN:
-                    sch = new MaxMinSchedulerWithLogging(clusters.get(i), instance, null, jobs);
+                    sch = new MaxMinSchedulerWithLogging(clusters.get(i), instance, null, jobs, workflowFile);
                     break;
                 case ADAPTIVE:
-                    sch = new AdaptiveHeftSchedulerWithLogging(clusters.get(i), instance, null, jobs);
+                    sch = new AdaptiveHeftSchedulerWithLogging(clusters.get(i), instance, null, jobs, workflowFile);
                     break;
                 default:
                     throw new IllegalStateException(kind.name());

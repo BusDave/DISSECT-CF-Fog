@@ -13,10 +13,10 @@ import hu.u_szeged.inf.fog.simulator.util.xml.WorkflowJobModel;
 import hu.u_szeged.inf.fog.simulator.workflow.WorkflowExecutor;
 import hu.u_szeged.inf.fog.simulator.workflow.WorkflowJob;
 import hu.u_szeged.inf.fog.simulator.workflow.scheduler.AdaptiveHeftScheduler;
+import hu.u_szeged.inf.fog.simulator.workflow.scheduler.GnnScheduler;
 import hu.u_szeged.inf.fog.simulator.workflow.scheduler.HeftDsScheduler;
 import hu.u_szeged.inf.fog.simulator.workflow.scheduler.HeftScheduler;
 import hu.u_szeged.inf.fog.simulator.workflow.scheduler.MaxMinScheduler;
-import hu.u_szeged.inf.fog.simulator.workflow.scheduler.NeuralScheduler;
 import hu.u_szeged.inf.fog.simulator.workflow.scheduler.WorkflowScheduler;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -29,9 +29,9 @@ import java.util.Locale;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * Cross-scheduler benchmark. Runs HEFT, HEFT-DS, and {@link NeuralScheduler}
- * on the same set of workflows under multiple seeds and writes a single
- * results CSV that the analysis script reads.
+ * Cross-scheduler benchmark. Runs HEFT, HEFT-DS, Max-Min, Adaptive HEFT and
+ * the GNN scheduler on the same set of workflows under multiple seeds and
+ * writes a single results CSV that the analysis script reads.
  *
  * <p>The workflow list is a hand-picked subset chosen to span:
  * <ul>
@@ -44,26 +44,34 @@ import org.apache.commons.lang3.tuple.Pair;
  * <p>Output: {@code sim_res/benchmark_results.csv} with columns:
  * <pre>
  *   workflow, scheduler, seed, makespan_sec, energy_kwh, total_tasks,
- *   neural_decisions, fallback_decisions, avg_inference_ms
+ *   gnn_decisions, fallback_decisions, avg_inference_ms
  * </pre>
  */
 public class SchedulerBenchmarkRunner {
 
+    // Balanced suite: mixes "wide & low-comm" (Adaptive's round-robin sweet spot)
+    // with "narrower & comm-heavy" workflows where the GNN gets to actually
+    // run and contribute. The bwa/epigenomics/soykb/srasearch ones tend to have
+    // dagWidth < 20 OR commIntensity >= 0.05, so they don't fall into
+    // Adaptive's distributedMode and exercise the learned policy.
     private static final List<String> WORKFLOWS = Arrays.asList(
-            "blast_50tasks_workflow_converted.xml",
+            // Wide & low-comm controls (Adaptive round-robin shines)
             "blast_200tasks_workflow_converted.xml",
-            "cycles_100tasks_workflow_converted.xml",
-            "genome_150tasks_workflow_converted.xml",
             "montage_100tasks_workflow_converted.xml",
-            "seismology_120tasks_workflow_converted.xml",
-            "chaotic_n50_c20.xml",
-            "chaotic_n150_c30.xml",
+            // Narrow / comm-heavy (GNN gets to decide)
+            "epigenomics_120tasks_workflow_converted.xml",
+            "epigenomics_200tasks_workflow_converted.xml",
+            "bwa_200tasks_workflow_converted.xml",
+            "soykb_120tasks_workflow_converted.xml",
+            "srasearch_120tasks_workflow_converted.xml",
+            "genome_150tasks_workflow_converted.xml",
+            // Chaotic + IoT demos
             "chaotic_n300_c40.xml",
             "IoT_CyberShake_100.xml");
 
     private static final int[] SEEDS = {42, 123, 7};
 
-    private enum SchedulerKind { HEFT, HEFTDS, MAXMIN, ADAPTIVE, NEURAL }
+    private enum SchedulerKind { HEFT, HEFTDS, MAXMIN, ADAPTIVE, GNN }
 
     public static void main(String[] args) throws Exception {
         SimLogger.setLogging(1, false);
@@ -72,7 +80,7 @@ public class SchedulerBenchmarkRunner {
         outFile.getParentFile().mkdirs();
         try (BufferedWriter w = new BufferedWriter(new FileWriter(outFile))) {
             w.write("workflow,scheduler,seed,makespan_sec,energy_kwh,total_tasks,"
-                    + "neural_decisions,fallback_decisions,avg_inference_ms\n");
+                    + "gnn_decisions,fallback_decisions,avg_inference_ms\n");
 
             int totalRuns = WORKFLOWS.size() * SchedulerKind.values().length * SEEDS.length;
             int runIdx = 0;
@@ -96,13 +104,13 @@ public class SchedulerBenchmarkRunner {
                                     "%s,%s,%d,%.3f,%.5f,%d,%d,%d,%.4f%n",
                                     wfName, kind.name().toLowerCase(), seed,
                                     r.makespanSec, r.energyKwh, r.totalTasks,
-                                    r.neuralDecisions, r.fallbackDecisions,
+                                    r.gnnDecisions, r.fallbackDecisions,
                                     r.avgInferenceMs));
                             w.flush();
                             System.out.printf(Locale.US,
-                                    "  makespan=%.1fs  energy=%.4fkWh  neural=%d/%d%n",
-                                    r.makespanSec, r.energyKwh, r.neuralDecisions,
-                                    r.neuralDecisions + r.fallbackDecisions);
+                                    "  makespan=%.1fs  energy=%.4fkWh  gnn=%d/%d%n",
+                                    r.makespanSec, r.energyKwh, r.gnnDecisions,
+                                    r.gnnDecisions + r.fallbackDecisions);
                         } catch (Exception e) {
                             System.err.println("  FAILED: " + e);
                             e.printStackTrace();
@@ -150,8 +158,8 @@ public class SchedulerBenchmarkRunner {
                 case ADAPTIVE:
                     sch = new AdaptiveHeftScheduler(clusters.get(i), instance, null, jobs);
                     break;
-                case NEURAL:
-                    sch = new NeuralScheduler(clusters.get(i), instance, null, jobs);
+                case GNN:
+                    sch = new GnnScheduler(clusters.get(i), instance, null, jobs);
                     break;
                 default:
                     throw new IllegalStateException(kind.name());
@@ -169,22 +177,22 @@ public class SchedulerBenchmarkRunner {
         double perCluster = schedulers.isEmpty() ? 0 : totalEnergyKwh / schedulers.size();
 
         double maxMakespan = 0;
-        int neuralDecisions = 0;
+        int gnnDecisions = 0;
         int fallbackDecisions = 0;
         long inferenceTimeNs = 0;
         for (Object o : schedulers) {
             WorkflowScheduler ws = (WorkflowScheduler) o;
             double ms = (ws.stopTime - ws.startTime) / 1000.0;
             maxMakespan = Math.max(maxMakespan, ms);
-            if (o instanceof NeuralScheduler) {
-                NeuralScheduler ns = (NeuralScheduler) o;
-                neuralDecisions += ns.neuralDecisions;
-                fallbackDecisions += ns.fallbackDecisions;
-                inferenceTimeNs += ns.inferenceTimeNs;
-                ns.close();
+            if (o instanceof GnnScheduler) {
+                GnnScheduler gs = (GnnScheduler) o;
+                gnnDecisions += gs.gnnDecisions;
+                fallbackDecisions += gs.fallbackDecisions;
+                inferenceTimeNs += gs.inferenceTimeNs;
+                gs.close();
             }
         }
-        int totalDecisions = neuralDecisions + fallbackDecisions;
+        int totalDecisions = gnnDecisions + fallbackDecisions;
         double avgInferenceMs = totalDecisions == 0
                 ? 0
                 : (inferenceTimeNs / 1_000_000.0) / totalDecisions;
@@ -193,7 +201,7 @@ public class SchedulerBenchmarkRunner {
         r.makespanSec = maxMakespan;
         r.energyKwh = perCluster;
         r.totalTasks = totalTasks;
-        r.neuralDecisions = neuralDecisions;
+        r.gnnDecisions = gnnDecisions;
         r.fallbackDecisions = fallbackDecisions;
         r.avgInferenceMs = avgInferenceMs;
         return r;
@@ -226,7 +234,7 @@ public class SchedulerBenchmarkRunner {
         double makespanSec;
         double energyKwh;
         int totalTasks;
-        int neuralDecisions;
+        int gnnDecisions;
         int fallbackDecisions;
         double avgInferenceMs;
     }

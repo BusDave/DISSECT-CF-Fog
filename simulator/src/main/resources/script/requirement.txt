@@ -1,2 +1,11 @@
 folium
 pydotplus
+
+wfcommons>=2.0
+numpy
+pandas
+torch>=2.0
+onnx
+onnxruntime
+matplotlib
+notebook

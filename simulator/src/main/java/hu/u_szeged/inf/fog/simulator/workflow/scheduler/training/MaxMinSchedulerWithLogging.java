@@ -50,8 +50,16 @@ public class MaxMinSchedulerWithLogging extends MaxMinScheduler {
                                       Instance instance,
                                       ArrayList<Actuator> actuatorArchitecture,
                                       Pair<String, ArrayList<WorkflowJob>> jobs) {
+        this(computeArchitecture, instance, actuatorArchitecture, jobs, null);
+    }
+
+    public MaxMinSchedulerWithLogging(ArrayList<WorkflowComputingAppliance> computeArchitecture,
+                                      Instance instance,
+                                      ArrayList<Actuator> actuatorArchitecture,
+                                      Pair<String, ArrayList<WorkflowJob>> jobs,
+                                      String workflowXmlPath) {
         super(computeArchitecture, instance, actuatorArchitecture, jobs);
-        this.logger = new TrainingLogger(jobs.getLeft(), "maxmin");
+        this.logger = new TrainingLogger(jobs.getLeft(), "maxmin", workflowXmlPath);
     }
 
     @Override

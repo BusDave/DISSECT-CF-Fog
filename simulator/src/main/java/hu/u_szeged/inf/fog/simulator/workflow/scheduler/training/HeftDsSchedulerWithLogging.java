@@ -35,8 +35,16 @@ public class HeftDsSchedulerWithLogging extends HeftDsScheduler {
                                       Instance instance,
                                       ArrayList<Actuator> actuatorArchitecture,
                                       Pair<String, ArrayList<WorkflowJob>> jobs) {
+        this(computeArchitecture, instance, actuatorArchitecture, jobs, null);
+    }
+
+    public HeftDsSchedulerWithLogging(ArrayList<WorkflowComputingAppliance> computeArchitecture,
+                                      Instance instance,
+                                      ArrayList<Actuator> actuatorArchitecture,
+                                      Pair<String, ArrayList<WorkflowJob>> jobs,
+                                      String workflowXmlPath) {
         super(computeArchitecture, instance, actuatorArchitecture, jobs);
-        this.logger = new TrainingLogger(jobs.getLeft(), "heftds");
+        this.logger = new TrainingLogger(jobs.getLeft(), "heftds", workflowXmlPath);
     }
 
     @Override

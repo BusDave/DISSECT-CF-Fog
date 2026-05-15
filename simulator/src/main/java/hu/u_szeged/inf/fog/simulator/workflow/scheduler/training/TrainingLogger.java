@@ -39,10 +39,21 @@ public class TrainingLogger {
 
     private final String workflowId;
     private final String schedulerName;
+    private final String workflowXmlPath;
 
     public TrainingLogger(String workflowId, String schedulerName) {
+        this(workflowId, schedulerName, null);
+    }
+
+    /**
+     * @param workflowXmlPath absolute path of the source XML — written to the
+     *        sidecar JSON so the Python GNN pipeline can rebuild the DAG.
+     *        May be {@code null} for legacy callers (will be omitted from JSON).
+     */
+    public TrainingLogger(String workflowId, String schedulerName, String workflowXmlPath) {
         this.workflowId = workflowId;
         this.schedulerName = schedulerName;
+        this.workflowXmlPath = workflowXmlPath;
         try {
             Files.createDirectories(TRAINING_DIR);
             long ts = System.currentTimeMillis();
@@ -99,18 +110,21 @@ public class TrainingLogger {
             throw new RuntimeException("Cannot close CSV", e);
         }
 
-        String json = "{\n"
-                + "  \"workflow\": \"" + escape(workflowId) + "\",\n"
-                + "  \"scheduler\": \"" + schedulerName + "\",\n"
-                + "  \"makespan_seconds\": " + formatNumber(makespanSec) + ",\n"
-                + "  \"energy_kwh\": " + formatNumber(energyKwh) + ",\n"
-                + "  \"total_tasks\": " + totalTasks + ",\n"
-                + "  \"total_decisions\": " + decisionCount + ",\n"
-                + "  \"node_count\": " + nodeCount + ",\n"
-                + "  \"csv_file\": \"" + csvPath.getFileName() + "\"\n"
-                + "}\n";
+        StringBuilder json = new StringBuilder("{\n");
+        json.append("  \"workflow\": \"").append(escape(workflowId)).append("\",\n");
+        json.append("  \"scheduler\": \"").append(schedulerName).append("\",\n");
+        json.append("  \"makespan_seconds\": ").append(formatNumber(makespanSec)).append(",\n");
+        json.append("  \"energy_kwh\": ").append(formatNumber(energyKwh)).append(",\n");
+        json.append("  \"total_tasks\": ").append(totalTasks).append(",\n");
+        json.append("  \"total_decisions\": ").append(decisionCount).append(",\n");
+        json.append("  \"node_count\": ").append(nodeCount).append(",\n");
+        json.append("  \"csv_file\": \"").append(csvPath.getFileName()).append("\"");
+        if (workflowXmlPath != null) {
+            json.append(",\n  \"workflow_xml_path\": \"").append(escape(workflowXmlPath)).append("\"");
+        }
+        json.append("\n}\n");
         try (BufferedWriter meta = new BufferedWriter(new FileWriter(metaPath.toFile()))) {
-            meta.write(json);
+            meta.write(json.toString());
         } catch (IOException e) {
             throw new RuntimeException("Cannot write metadata JSON", e);
         }
