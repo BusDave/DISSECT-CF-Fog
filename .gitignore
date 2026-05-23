@@ -8,3 +8,22 @@
 # Simulation output (regenerable, large, machine-specific timestamps)
 sim_res/
 
+# Generated workflow corpus (regenerable via generate_training_corpus.py;
+# only the 3 upstream demo workflows + the 10 benchmark workflows are tracked)
+simulator/src/main/resources/demo/WORKFLOW_examples/blast_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/bwa_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/chaos_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/chaotic_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/cycles_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/epigenomics_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/genome_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/montage_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/random-wf-*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/seismology_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/srasearch_*.xml
+simulator/src/main/resources/demo/WORKFLOW_examples/soykb_*.xml
+
+# Python cache
+__pycache__/
+*.pyc
+
