@@ -55,16 +55,28 @@ public class SchedulerBenchmarkRunner {
     // dagWidth < 20 OR commIntensity >= 0.05, so they don't fall into
     // Adaptive's distributedMode and exercise the learned policy.
     private static final List<String> WORKFLOWS = Arrays.asList(
-            // Wide & low-comm controls (Adaptive round-robin shines)
+            // Wide & low-comm (HEFT-DS struggles here, Adaptive round-robin shines)
+            "blast_50tasks_workflow_converted.xml",
             "blast_200tasks_workflow_converted.xml",
+            // Diamond / mixed (HEFT-DS sometimes shines)
             "montage_100tasks_workflow_converted.xml",
-            // Narrow / comm-heavy (GNN gets to decide)
+            "montage_200tasks_workflow_converted.xml",
+            // Deep / sequential (HEFT-DS friendly)
+            "cycles_100tasks_workflow_converted.xml",
+            "cycles_200tasks_workflow_converted.xml",
+            "cycles_400tasks_workflow_converted.xml",
             "epigenomics_120tasks_workflow_converted.xml",
             "epigenomics_200tasks_workflow_converted.xml",
+            "epigenomics_400tasks_workflow_converted.xml",
+            // Comm-intensive
             "bwa_200tasks_workflow_converted.xml",
+            "bwa_400tasks_workflow_converted.xml",
             "soykb_120tasks_workflow_converted.xml",
+            "soykb_320tasks_workflow_converted.xml",
             "srasearch_120tasks_workflow_converted.xml",
             "genome_150tasks_workflow_converted.xml",
+            "genome_320tasks_workflow_converted.xml",
+            "seismology_120tasks_workflow_converted.xml",
             // Chaotic + IoT demos
             "chaotic_n300_c40.xml",
             "IoT_CyberShake_100.xml");

@@ -153,7 +153,7 @@ public class WorkflowSimulation {
         WorkflowExecutor executor = WorkflowExecutor.getIstance();
         
         // Importing and submitting the workflow jobs to each cluster
-        String workflowFile = ScenarioBase.resourcePath + "WORKFLOW_examples/epigenomics_50tasks_workflow_converted.xml";
+        String workflowFile = ScenarioBase.resourcePath + "WORKFLOW_examples/IoT_CyberShake_100.xml";
 
 
         VirtualAppliance va = new VirtualAppliance("va", 100, 0, false, 1_073_741_824L);

@@ -163,6 +163,42 @@ def main() -> None:
     fig.savefig(OUT_DIR / "benchmark_slr.pdf")
     print(f"wrote {OUT_DIR / 'benchmark_slr.png'} + .pdf")
 
+    # ---------- makespan ↔ energy correlation scatter ----------
+    #  Every run is a single (makespan, energy) point; we colour by
+    #  scheduler so the per-scheduler clouds are visible, fit a single
+    #  global linear regression line across all points, and annotate
+    #  the R² to validate the "energy is dominated by makespan" claim.
+    fig, ax = plt.subplots(figsize=(7, 5))
+    for sched in SCHEDULERS:
+        sub = df[df.scheduler == sched]
+        ax.scatter(sub.makespan_sec, sub.energy_kwh,
+                   color=COLOURS[sched], s=40, alpha=0.7,
+                   edgecolor="black", linewidth=0.3,
+                   label=sched.upper())
+
+    # Linear fit on all points
+    coeffs = np.polyfit(df.makespan_sec, df.energy_kwh, 1)
+    xs = np.array([df.makespan_sec.min(), df.makespan_sec.max()])
+    ax.plot(xs, np.polyval(coeffs, xs), "k--", alpha=0.5,
+            label="lineáris illesztés")
+
+    # R² of the global correlation
+    r2 = np.corrcoef(df.makespan_sec, df.energy_kwh)[0, 1] ** 2
+    ax.text(0.05, 0.95, f"$R^2 = {r2:.3f}$", transform=ax.transAxes,
+            fontsize=12, verticalalignment="top",
+            bbox=dict(boxstyle="round", facecolor="white", alpha=0.85))
+
+    ax.set_xlabel("Makespan [s]")
+    ax.set_ylabel("Energia [kWh]")
+    ax.set_title("Makespan és energiafogyasztás korrelációja\n"
+                 "(minden pont egy szimulációs futás)")
+    ax.legend(loc="lower right", fontsize=9, ncol=2)
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "benchmark_correlation.png", dpi=150)
+    fig.savefig(OUT_DIR / "benchmark_correlation.pdf")
+    print(f"wrote {OUT_DIR / 'benchmark_correlation.png'} + .pdf  (R²={r2:.3f})")
+
     # ---------- scatter: GNN speedup vs HEFT ----------
     if "gnn" in pivot_ms and "heft" in pivot_ms:
         fig, ax = plt.subplots(figsize=(6, 6))
